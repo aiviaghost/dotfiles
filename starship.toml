@@ -1,0 +1,13 @@
+command_timeout = 150
+
+[battery]
+disabled = true
+
+[package]
+disabled = true
+
+[directory]
+truncation_length = 0
+
+[cmd_duration]
+min_time = 1000

@@ -202,7 +202,7 @@ Hyprland --verify-config        # should end with "config ok"
 ls -l ~/.config/hypr/           # hyprland.lua and autostart.lua should be symlinks into the repo
 ```
 
-If you run this from inside a running Hyprland session, it also prints `Couldn't bind the Hyprland Socket 2 ... IPC will not work`. That line is harmless: the checker just can't open a second IPC socket next to the running session.
+It also prints `Couldn't bind the Hyprland Socket 2 ... IPC will not work` every time. Ignore that line: the checker starts a throwaway Hyprland that tries to open its own IPC socket, which it doesn't need for checking. Only the last line matters, and it should be `config ok`.
 
 ### 9. Shell
 

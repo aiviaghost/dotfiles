@@ -3,5 +3,5 @@
 
 # Network GUI opened by clicking the waybar network module
 nmgui-bin
-# Animated shader wallpaper (optional; disabled in autostart.conf because it drains battery)
+# Animated shader wallpaper (optional; commented out in hypr/autostart.lua because it drains battery)
 neowall-git

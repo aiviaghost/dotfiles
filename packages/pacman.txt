@@ -17,7 +17,6 @@ hyprshot
 grim
 slurp
 wl-clipboard
-jq
 
 # Bar, launcher, terminal, file manager
 waybar

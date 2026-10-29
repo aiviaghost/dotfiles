@@ -8,7 +8,7 @@ A plain Hyprland desktop without a "shell" layer:
 
 | Role | This setup | Fresh CachyOS (Noctalia) install |
 | --- | --- | --- |
-| Hyprland config | `~/.config/hypr/hyprland.conf` (classic hyprlang) | `~/.config/hypr/hyprland.lua` + `config/*.lua` |
+| Hyprland config | `~/.config/hypr/hyprland.lua` (single file, converted from the old default config) | `~/.config/hypr/hyprland.lua` + `config/*.lua` |
 | Bar / panel | **waybar** (default stylesheet) | Noctalia shell |
 | App launcher | **wofi** (`wofi --show=drun`) | Noctalia launcher |
 | Lock screen | **hyprlock** | Noctalia lock |
@@ -21,17 +21,18 @@ A plain Hyprland desktop without a "shell" layer:
 | Shell | fish + CachyOS fish config + **starship** prompt | fish + CachyOS fish config |
 | Theming | GTK/Qt defaults (Adwaita), default cursor | adw-gtk3 dark, qt6ct, Bibata cursor |
 
+> **Requires Hyprland 0.55 or newer.** Hyprland 0.57 removed support for the old `hyprland.conf` (hyprlang) format, so the config is Lua. Tested on 0.56.2 and 0.57.0.
+
 Look: 2px border with a red/purple/orange/blue gradient, 10px rounding, gaps 5/20, blur on, Swedish (`se`) keyboard, natural touchpad scrolling, 3-finger horizontal swipe switches workspaces.
 
 ## Repo layout
 
 ```
 config/                     -> mirrors ~/.config (install.sh symlinks each file)
-  hypr/hyprland.conf          main Hyprland config (monitors, look, input, keybinds, rules)
-  hypr/autostart.conf         waybar + polkit agent
-  hypr/hyprlock.conf          lock screen
+  hypr/hyprland.lua           main Hyprland config (monitors, look, input, keybinds, rules)
+  hypr/autostart.lua          waybar + polkit agent (loaded with require("autostart"))
+  hypr/hyprlock.conf          lock screen (hyprlock still uses its own .conf format)
   hypr/hyprpaper.conf         wallpaper (~/Pictures/Wallpapers/flying.jpg)
-  hypr/scripts/move-workspace.sh   SUPER+CTRL+N: move all windows to workspace N
   waybar/config.jsonc         workspaces | power profile, wifi, bluetooth, audio, battery, clock
   kitty/kitty.conf            font = Fira Code
   fish/config.fish            sources CachyOS fish config, PATH tweaks, starship
@@ -48,6 +49,7 @@ packages/
   pacman-explicit-full.txt    every explicitly installed package on the old machine (reference only)
   aur-explicit-full.txt       every explicitly installed AUR package on the old machine (reference only)
 install.sh                  symlinks config/ into ~/.config, backing up anything it replaces
+                            and removing links to files that were deleted from the repo
 scripts/new-feature.sh      unrelated work helper (git worktrees)
 ```
 
@@ -110,7 +112,7 @@ If `noctalia-greeter` is installed (`pacman -Q noctalia-greeter`), leave it for 
 
 ### 5. Clear the Noctalia user configs out of your home directory
 
-Removing the package does **not** touch files it already copied into your home from `/etc/skel`. The most important one: **if `~/.config/hypr/hyprland.lua` exists, Hyprland loads it and ignores `hyprland.conf` completely.**
+Removing the package does **not** touch files it already copied into your home from `/etc/skel`. The most important is `~/.config/hypr/`: Noctalia's `hyprland.lua` there starts the Noctalia shell and loads its own `config/*.lua` files.
 
 Move everything into a backup folder (nothing is deleted):
 
@@ -125,7 +127,7 @@ end
 ```
 
 What each one did:
-- `hypr/` holds the Lua config. It must go.
+- `hypr/` holds Noctalia's Hyprland config. It must go. `install.sh` puts this repo's `hyprland.lua` in its place.
 - `noctalia/` holds the shell config.
 - `uwsm/env` forces `QT_QPA_PLATFORMTHEME=qt6ct` and the Bibata cursor. This setup has no `uwsm/env`.
 - `qt6ct`, `gtk-3.0`, `gtk-4.0`, `kdeglobals`, `xsettingsd` hold the dark adw-gtk3/Qt theming.
@@ -183,22 +185,24 @@ On the first login, pick **Hyprland (uwsm)** in the session dropdown. SDDM remem
 
 The configs come from a laptop with an external ultrawide, so check these:
 
-1. **Monitors** (`config/hypr/hyprland.conf`, MONITORS section). The old setup is:
+1. **Monitors** (`config/hypr/hyprland.lua`, MONITORS section). The old setup is:
+   ```lua
+   hl.monitor({ output = "eDP-1",    mode = "highres",      position = "auto",       scale = 1.5 })  -- laptop panel 2880x1620 @ 1.5x
+   hl.monitor({ output = "HDMI-A-1", mode = "5120x1440@60", position = "auto-right", scale = 1 })    -- 49" ultrawide
    ```
-   monitor=eDP-1,highres,auto,1.5                # laptop panel 2880x1620 @ 1.5x
-   monitor=HDMI-A-1,5120x1440@60,auto-right,1    # 49" ultrawide
-   ```
-   List the new machine's outputs with `hyprctl monitors all` and adjust. A safe catch-all is to uncomment `monitor=,preferred,auto-right,1`.
+   List the new machine's outputs with `hyprctl monitors all` and adjust. A safe catch-all is to uncomment the `output = ""` fallback line.
 2. **Battery** (`config/waybar/config.jsonc`): `"bat": "BAT0"`, `"adapter": "AC0"`. Compare with `ls /sys/class/power_supply`. On a desktop with no battery, remove `"battery"` from `modules-right`.
 3. **Wifi interface**: waybar matches `wlan*`. Check `ip link`. If the device is named e.g. `wlp2s0`, change `"interface"` or remove that line.
-4. **Keyboard**: `kb_layout = se`.
+4. **Keyboard**: `kb_layout = "se"` in the INPUT section.
 
 Validate before rebooting:
 
 ```fish
-Hyprland --verify-config -c ~/.config/hypr/hyprland.conf     # should print "config ok"
-ls ~/.config/hypr/                                           # must NOT contain hyprland.lua
+Hyprland --verify-config        # should end with "config ok"
+ls -l ~/.config/hypr/           # hyprland.lua and autostart.lua should be symlinks into the repo
 ```
+
+If you run this from inside a running Hyprland session, it also prints `Couldn't bind the Hyprland Socket 2 ... IPC will not work`. That line is harmless: the checker just can't open a second IPC socket next to the running session.
 
 ### 9. Shell
 
@@ -209,6 +213,17 @@ The `config.fish` lines for conda, coursier, railway and wokwi do nothing until 
 ### 10. Reboot
 
 Pick **Hyprland (uwsm)** in SDDM. You should see waybar at the top with numbered workspaces on the left and status icons on the right.
+
+### Updating a machine that already uses these dotfiles
+
+```fish
+cd ~/Github/dotfiles
+git pull
+./install.sh        # links new files, prunes links to removed ones
+hyprctl reload      # or log out and back in
+```
+
+On the old laptop, where `~/.config/hypr/hyprland.conf` is still a plain file, do this **before** updating to Hyprland 0.57. `install.sh` adds `hyprland.lua` next to it, and Hyprland prefers the `.lua` file from 0.55 on, so the switch happens on the next login.
 
 ---
 
@@ -231,7 +246,7 @@ Pick **Hyprland (uwsm)** in SDDM. You should see waybar at the top with numbered
 | `SUPER + 1..0` | go to workspace 1..10 |
 | `SUPER + SHIFT + 1..0` | move window to workspace |
 | `SUPER + CTRL + 1..0` | move **all** windows on this workspace to workspace N |
-| `SUPER + SHIFT + left/right` | move current workspace to the other monitor |
+| `SUPER + SHIFT + left/right` | move current workspace to the monitor on the left/right |
 | `SUPER + S` / `SUPER + SHIFT + S` | toggle scratchpad / move window to scratchpad |
 | `SUPER + scroll` | cycle workspaces |
 | `SUPER + LMB/RMB drag` | move / resize window |
@@ -242,12 +257,18 @@ Media, volume and brightness keys work via `wpctl`, `playerctl` and `brightnessc
 
 ## Troubleshooting
 
-- **Hyprland starts with a default/example config, or ignores my changes.** `~/.config/hypr/hyprland.lua` exists. Hyprland prefers it over `hyprland.conf`, and auto-generates one if it finds no config at all. Delete it and restart Hyprland.
-- **Black screen / Hyprland won't start.** Switch to a TTY (`Ctrl+Alt+F3`), run `Hyprland --verify-config -c ~/.config/hypr/hyprland.conf`, and check `journalctl --user -b -u 'wayland-wm@*'`.
+- **`unexpected symbol near '#'` when validating.** Hyprland is reading a hyprlang file (`hyprland.conf`) as Lua. Since 0.57 only `hyprland.lua` is supported. Don't pass `-c ~/.config/hypr/hyprland.conf`. Pull this repo and rerun `./install.sh`.
+- **Hyprland starts with a default/example config, or ignores my changes.** `~/.config/hypr/hyprland.lua` is not this repo's file. Hyprland writes an example `hyprland.lua` when it finds no Lua config. Run `./install.sh`, which backs that file up and links the real one.
+- **Black screen / Hyprland won't start.** Switch to a TTY (`Ctrl+Alt+F3`), run `Hyprland --verify-config`, and check `journalctl --user -b -u 'wayland-wm@*'`.
 - **Waybar icons show as boxes.** A Nerd Font is missing: `sudo pacman -S ttf-meslo-nerd`.
 - **Qt apps complain about qt6ct.** A leftover `~/.config/uwsm/env` still sets `QT_QPA_PLATFORMTHEME=qt6ct`. Remove that line or the file, then log out and back in.
 - **No password prompts from GUI apps.** `systemctl --user enable --now hyprpolkitagent.service`.
 
-## Heads-up: hyprlang is being phased out
+## Notes on the Lua config (Hyprland 0.57+)
 
-Hyprland 0.55 introduced Lua configs. Upstream has said the classic `hyprland.conf` (hyprlang) format will still be supported for a release or two after that, then dropped. Both machines currently run 0.56.x and `hyprland.conf` works. When an update eventually stops loading it, convert this config to `hyprland.lua` (community converters such as `hyprconf2lua` exist) and commit the result here.
+- `hyprctl dispatch` now takes Lua, e.g. `hyprctl dispatch 'hl.dsp.focus({ workspace = 3 })'`, and `hyprctl eval '<lua>'` runs arbitrary Lua. Old-style `hyprctl dispatch workspace 3` scripts no longer work.
+- `SUPER + CTRL + N` (move all windows) used to call `scripts/move-workspace.sh` (hyprctl + jq). It is now the `moveAllWindowsTo` function inside `hyprland.lua`.
+- Binds that ran two dispatchers on one key (focus + raise) are now one Lua function per key.
+- `SUPER + SHIFT + left/right` used to mean "next/previous monitor" (`+1`/`-1`). The Lua API takes a direction, so it now moves the workspace to the monitor physically on that side.
+- hyprlock and hyprpaper still use their own `.conf` files. Only Hyprland itself moved to Lua.
+- API reference: the wiki (https://wiki.hypr.land/configuring/) and the type stubs at `/usr/share/hypr/stubs/hl.meta.lua`.

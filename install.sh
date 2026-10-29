@@ -10,6 +10,7 @@
 # Any existing file at a target path is moved into
 # ~/.config-backup-<timestamp>/ (same relative path) before being replaced.
 # Files are linked one by one, so unrelated files in e.g. ~/.config/fish stay put.
+# Broken links into this repo (left behind when a file is removed here) are deleted.
 
 set -euo pipefail
 
@@ -27,6 +28,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC="$REPO/config"
 DEST="${XDG_CONFIG_HOME:-$HOME/.config}"
 BACKUP="$HOME/.config-backup-$(date +%Y%m%d-%H%M%S)"
+BACKED_UP=0
 
 run() {
   if [[ "$DRY" == 1 ]]; then echo "  would run: $*"; else "$@"; fi
@@ -46,6 +48,7 @@ while IFS= read -r -d '' file; do
     echo "backup   $rel -> $BACKUP/$rel"
     run mkdir -p "$(dirname "$BACKUP/$rel")"
     run mv "$target" "$BACKUP/$rel"
+    BACKED_UP=1
   fi
 
   run mkdir -p "$(dirname "$target")"
@@ -58,5 +61,14 @@ while IFS= read -r -d '' file; do
   fi
 done < <(find "$SRC" -type f -print0 | sort -z)
 
-[[ -d "$BACKUP" ]] && echo "Backed up replaced files to $BACKUP"
+# Remove broken links that point into this repo (files that were renamed or
+# deleted here, e.g. the old hypr/hyprland.conf).
+while IFS= read -r -d '' link; do
+  if [[ "$(readlink "$link")" == "$SRC"/* ]]; then
+    echo "prune    ${link#"$DEST"/}"
+    run rm "$link"
+  fi
+done < <(find "$DEST" -xtype l -print0 2>/dev/null)
+
+[[ "$BACKED_UP" == 1 ]] && echo "Backed up replaced files to $BACKUP"
 echo "Done."

@@ -1,0 +1,66 @@
+{
+    "modules-left": [
+        "hyprland/workspaces"
+    ],
+    "modules-right": [
+        "power-profiles-daemon",
+        "network",
+        "bluetooth",
+        "pulseaudio",
+        "battery",
+        "clock"
+    ],
+    "bluetooth": {
+        "tooltip-format": "Devices connected: {num_connections}",
+        "on-click": "blueman-manager"
+    },
+    "network": {
+        "interface": "wlan*",
+        "format-icons": [
+        "󰤯",
+        "󰤟",
+        "󰤢",
+        "󰤥",
+        "󰤨"
+        ],
+        "format": "{icon} {essid}",
+        "format-wifi": "{icon}",
+        "format-ethernet": "󰀂",
+        "format-disconnected": "󰤮",
+        "tooltip-format-wifi": "{essid} ({frequency} GHz)\n⇣{bandwidthDownBytes}  ⇡{bandwidthUpBytes}",
+        "tooltip-format-ethernet": "⇣{bandwidthDownBytes}  ⇡{bandwidthUpBytes}",
+        "tooltip-format-disconnected": "Disconnected",
+        "interval": 3,
+        "spacing": 1,
+        "on-click": "nmgui"
+    },
+    "battery": {
+        "adapter": "AC0",
+        "bat": "BAT0",
+        "format": "{capacity}% {icon}",
+        "format-charging": "{capacity}% 󰂄",
+        "format-plugged": "{capacity}% 󰚥",
+        "format-full": "󰁹",
+        "format-icons": ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"],
+        "tooltip-format": "{capacity}% ({timeTo})",
+        "states": {
+            "warning": 20,
+            "critical": 10
+        }
+    },
+    "power-profiles-daemon": {
+      "format": "{icon}",
+      "tooltip-format": "Power profile: {profile}\nDriver: {driver}",
+      "tooltip": true,
+      "format-icons": {
+        "default": "",
+        "performance": "",
+        "balanced": "",
+        "power-saver": ""
+      }
+    },
+    "hyprland/workspaces": {
+        "format": "{id}",
+        "on-click": "activate"
+    }
+}

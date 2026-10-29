@@ -1,10 +1,8 @@
 ﻿## Source from conf.d before our fish config
 source /usr/share/cachyos-fish-config/conf.d/done.fish
 
-
 ## Set values
 ## Run fastfetch as welcome message
-set -U fish_greeting
 # function fish_greeting
 #     fastfetch
 # end
@@ -23,20 +21,8 @@ if test -f ~/.fish_profile
   source ~/.fish_profile
 end
 
-# Add ~/.local/bin to PATH
-if test -d ~/.local/bin
-    if not contains -- ~/.local/bin $PATH
-        set -p PATH ~/.local/bin
-    end
-end
-
-# Add depot_tools to PATH
-if test -d ~/Applications/depot_tools
-    if not contains -- ~/Applications/depot_tools $PATH
-        set -p PATH ~/Applications/depot_tools
-    end
-end
-
+# Append common directories for executable files to $PATH
+fish_add_path ~/.local/bin ~/.cargo/bin ~/Applications/depot_tools
 
 ## Functions
 # Functions needed for !! and !$ https://github.com/oh-my-fish/plugin-bang-bang
@@ -69,7 +55,7 @@ end
 
 # Fish command history
 function history
-    builtin history --show-time='%F %T '
+    builtin history --show-time='%F %T ' $argv
 end
 
 function backup --argument filename
@@ -90,10 +76,10 @@ end
 
 ## Useful aliases
 # Replace ls with eza
-# alias ls='eza -al --color=always --group-directories-first --icons' # preferred listing
-# alias la='eza -a --color=always --group-directories-first --icons'  # all files and dirs
-# alias ll='eza -l --color=always --group-directories-first --icons'  # long format
-# alias lt='eza -aT --color=always --group-directories-first --icons' # tree listing
+# alias ls='eza -al --color=always --group-directories-first --icons=always' # preferred listing
+# alias la='eza -a --color=always --group-directories-first --icons=always'  # all files and dirs
+# alias ll='eza -l --color=always --group-directories-first --icons=always'  # long format
+# alias lt='eza -aT --color=always --group-directories-first --icons=always' # tree listing
 # alias l.="eza -a | grep -e '^\.'"                                     # show only dotfiles
 
 # Common use
@@ -117,7 +103,7 @@ alias egrep='egrep --color=auto'
 alias hw='hwinfo --short'                                   # Hardware Info
 alias big="expac -H M '%m\t%n' | sort -h | nl"              # Sort installed packages according to size in MB
 alias gitpkg='pacman -Q | grep -i "\-git" | wc -l'          # List amount of -git packages
-alias update='sudo pacman -Syu'
+alias update='sudo cachyos-rate-mirrors && sudo pacman -Syu'
 
 # Get fastest mirrors
 alias mirror="sudo cachyos-rate-mirrors"
@@ -125,7 +111,6 @@ alias mirror="sudo cachyos-rate-mirrors"
 # Help people new to Arch
 alias apt='man pacman'
 alias apt-get='man pacman'
-alias please='sudo'
 alias tb='nc termbin.com 9999'
 
 # Cleanup orphaned packages
@@ -136,5 +121,3 @@ alias jctl="journalctl -p 3 -xb"
 
 # Recent installed packages
 alias rip="expac --timefmt='%Y-%m-%d %T' '%l\t%n %v' | sort | tail -200 | nl"
-
-starship init fish | source

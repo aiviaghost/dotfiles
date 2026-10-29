@@ -1,0 +1,56 @@
+# Packages the desktop setup needs (official repos + CachyOS repos).
+# Install with:  sudo pacman -S --needed - < <(grep -Ev '^(#|$)' packages/pacman.txt)
+
+# Compositor + session
+hyprland
+uwsm
+xdg-desktop-portal-hyprland
+xdg-desktop-portal-gtk
+hyprpolkitagent
+sddm
+
+# Hypr ecosystem tools used by the config
+hyprlock
+hyprpaper
+hyprpicker
+hyprshot
+grim
+slurp
+wl-clipboard
+jq
+
+# Bar, launcher, terminal, file manager
+waybar
+wofi
+kitty
+dolphin
+
+# Hardware keys / status bar modules
+brightnessctl
+playerctl
+power-profiles-daemon
+blueman
+bluez
+bluez-utils
+networkmanager
+pipewire-pulse
+wireplumber
+pavucontrol
+
+# Fonts (Fira Code for kitty, Nerd Fonts for the waybar icons)
+ttf-fira-code
+ttf-meslo-nerd
+noto-fonts
+noto-fonts-emoji
+
+# Shell + CLI
+fish
+cachyos-fish-config
+starship
+eza
+fastfetch
+micro
+lazygit
+
+# Browser (default in mimeapps.list)
+firefox

@@ -8,6 +8,7 @@ disabled = true
 
 [directory]
 truncation_length = 0
+truncate_to_repo = false
 
 [cmd_duration]
 min_time = 1000

@@ -1,0 +1,7 @@
+# AUR packages the desktop setup uses.
+# Install with:  paru -S --needed - < <(grep -Ev '^(#|$)' packages/aur.txt)
+
+# Network GUI opened by clicking the waybar network module
+nmgui-bin
+# Animated shader wallpaper (optional; disabled in autostart.conf because it drains battery)
+neowall-git

@@ -1,0 +1,5 @@
+bambustudio-bin
+neowall-git
+nmgui-bin
+slack-desktop
+visual-studio-code-bin

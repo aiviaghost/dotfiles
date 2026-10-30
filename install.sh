@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# install.sh — symlink every file under config/ into ~/.config.
+# install.sh — symlink every file under config/ into ~/.config, and helper
+# scripts (scripts/wt) into ~/.local/bin.
 #
 # Usage: ./install.sh [--copy] [--dry-run]
 #
@@ -69,6 +70,34 @@ while IFS= read -r -d '' link; do
     run rm "$link"
   fi
 done < <(find "$DEST" -xtype l -print0 2>/dev/null)
+
+# Put helper scripts on PATH (fish/config.fish adds ~/.local/bin).
+BIN="$HOME/.local/bin"
+for script in wt; do
+  file="$REPO/scripts/$script"
+  target="$BIN/$script"
+
+  if [[ -L "$target" && "$(readlink -f "$target")" == "$file" ]]; then
+    echo "ok       ~/.local/bin/$script"
+    continue
+  fi
+
+  if [[ -e "$target" || -L "$target" ]]; then
+    echo "backup   ~/.local/bin/$script -> $BACKUP/.local/bin/$script"
+    run mkdir -p "$BACKUP/.local/bin"
+    run mv "$target" "$BACKUP/.local/bin/$script"
+    BACKED_UP=1
+  fi
+
+  run mkdir -p "$BIN"
+  if [[ "$MODE" == copy ]]; then
+    echo "copy     ~/.local/bin/$script"
+    run cp -a "$file" "$target"
+  else
+    echo "link     ~/.local/bin/$script"
+    run ln -s "$file" "$target"
+  fi
+done
 
 [[ "$BACKED_UP" == 1 ]] && echo "Backed up replaced files to $BACKUP"
 echo "Done."

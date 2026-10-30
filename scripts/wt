@@ -1,0 +1,223 @@
+#!/usr/bin/env bash
+#
+# wt — create (or remove) a git worktree under <repo>/.claude/worktrees/<name>.
+#
+# Usage:
+#   wt [name]                 create a worktree; repo = the one you're in, else pick with fzf
+#   wt -r [name]              remove a worktree (pick from existing ones if no name given)
+#   wt -l                     list worktrees under .claude/worktrees for the repo
+#   wt -R <path> [name]       act on an explicit repo instead of cwd/picker
+#
+# Flags:
+#   -r, --remove   remove instead of create
+#   -f, --force    with --remove: drop the worktree even if it has local changes
+#   -l, --list     list this repo's .claude worktrees and exit
+#   -R, --repo     explicit repo path (skips cwd detection and the picker)
+#   -b, --base     base branch/commit for the new branch (default: local main/master)
+#       --no-env   don't copy .env* files into the new worktree
+#   -h, --help     this message
+#
+# Human-readable output goes to stderr; the worktree path goes to stdout, so you
+# can do:  cd (wt my-feature)      # fish
+#          cd "$(wt my-feature)"   # bash
+#
+# Repos for the picker are discovered under $WT_SEARCH_ROOT (default ~/Github),
+# scanning two levels deep so both `dotfiles` and `atech/backend` show up.
+
+set -euo pipefail
+
+SEARCH_ROOT="${WT_SEARCH_ROOT:-$HOME/Github}"
+WT_SUBDIR=".claude/worktrees"
+
+REMOVE=0
+FORCE=0
+LIST=0
+COPY_ENV=1
+REPO=""
+BASE=""
+NAME=""
+
+say() { printf '%s\n' "$*" >&2; }
+die() { printf 'wt: %s\n' "$*" >&2; exit 1; }
+
+usage() { sed -n '3,26p' "$0" | sed 's/^# \{0,1\}//' >&2; }
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -r|--remove) REMOVE=1 ;;
+    -f|--force)  FORCE=1 ;;
+    -l|--list)   LIST=1 ;;
+    --no-env)    COPY_ENV=0 ;;
+    -R|--repo)   REPO="${2:-}"; [[ -n "$REPO" ]] || die "--repo needs a path"; shift ;;
+    -b|--base)   BASE="${2:-}"; [[ -n "$BASE" ]] || die "--base needs a branch"; shift ;;
+    -h|--help)   usage; exit 0 ;;
+    -*)          die "unknown flag '$1' (try --help)" ;;
+    *)           [[ -z "$NAME" ]] || die "unexpected argument '$1'"; NAME="$1" ;;
+  esac
+  shift
+done
+
+[[ "$FORCE" == 1 && "$REMOVE" != 1 ]] && die "--force only applies together with --remove"
+
+# --- repo selection ----------------------------------------------------------
+
+# Print every git repo under SEARCH_ROOT, at most two directories deep.
+find_repos() {
+  find "$SEARCH_ROOT" -maxdepth 3 -mindepth 2 -type d -name .git -prune 2>/dev/null \
+    | sed 's|/\.git$||' | sort
+}
+
+pick_repo() {
+  command -v fzf >/dev/null || die "not inside a git repo and fzf isn't installed — pass --repo"
+  local repos
+  repos="$(find_repos)"
+  [[ -n "$repos" ]] || die "no git repos found under $SEARCH_ROOT"
+  printf '%s\n' "$repos" \
+    | sed "s|^$SEARCH_ROOT/||" \
+    | fzf --prompt='repo> ' --height=40% --reverse --border \
+    | sed "s|^|$SEARCH_ROOT/|"
+}
+
+if [[ -z "$REPO" ]]; then
+  # Inside a repo? Use it — but resolve to the main worktree, so running wt from
+  # inside one worktree still creates siblings next to it, not nested in it.
+  if REPO="$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"; then
+    REPO="$(dirname "$REPO")"
+  else
+    REPO="$(pick_repo)"
+    [[ -n "$REPO" ]] || { say "wt: nothing picked."; exit 1; }
+  fi
+fi
+
+REPO="$(cd "$REPO" 2>/dev/null && pwd)" || die "no such directory: $REPO"
+git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1 || die "$REPO is not a git repository"
+WT_ROOT="$REPO/$WT_SUBDIR"
+
+# --- list --------------------------------------------------------------------
+
+if [[ "$LIST" == 1 ]]; then
+  if [[ -d "$WT_ROOT" ]]; then
+    find "$WT_ROOT" -maxdepth 1 -mindepth 1 -type d -printf '%f\n' | sort
+  fi
+  exit 0
+fi
+
+# Existing worktree names, one per line.
+existing_worktrees() {
+  [[ -d "$WT_ROOT" ]] || return 0
+  find "$WT_ROOT" -maxdepth 1 -mindepth 1 -type d -printf '%f\n' | sort
+}
+
+# --- name --------------------------------------------------------------------
+
+if [[ -z "$NAME" ]]; then
+  if [[ "$REMOVE" == 1 ]]; then
+    command -v fzf >/dev/null || die "pass the worktree name to remove"
+    NAME="$(existing_worktrees | fzf --prompt='remove> ' --height=40% --reverse --border)"
+    [[ -n "$NAME" ]] || { say "wt: nothing picked."; exit 1; }
+  else
+    say "repo: $REPO"
+    read -r -p "name: " NAME </dev/tty >&2 || true
+    NAME="${NAME//[[:space:]]/}"
+    [[ -n "$NAME" ]] || die "no name given"
+  fi
+fi
+
+git check-ref-format --branch "$NAME" >/dev/null 2>&1 || die "'$NAME' is not a valid branch name"
+
+WT_PATH="$WT_ROOT/$NAME"
+
+# --- remove ------------------------------------------------------------------
+
+if [[ "$REMOVE" == 1 ]]; then
+  if [[ -d "$WT_PATH" ]]; then
+    remove_cmd=(git -C "$REPO" worktree remove)
+    [[ "$FORCE" == 1 ]] && remove_cmd+=(--force)
+    remove_cmd+=("$WT_PATH")
+    if "${remove_cmd[@]}" >&2; then
+      say "removed worktree $WT_PATH"
+    else
+      say "WARNING: could not remove $WT_PATH"
+      say "         (likely uncommitted or untracked changes — re-run with --force)"
+      exit 1
+    fi
+  else
+    say "no worktree at $WT_PATH — skipping worktree removal"
+    git -C "$REPO" worktree prune
+  fi
+
+  if git -C "$REPO" show-ref --verify --quiet "refs/heads/$NAME"; then
+    if git -C "$REPO" branch -D "$NAME" >&2; then
+      say "deleted local branch '$NAME'"
+    else
+      say "WARNING: could not delete local branch '$NAME'"
+    fi
+  fi
+  exit 0
+fi
+
+# --- create ------------------------------------------------------------------
+
+# The repo's default branch, preferring the *local* branch over its remote
+# counterpart: origin/HEAD names the default branch, but we base new branches on
+# the local branch of that name so worktrees start from whatever you have
+# checked out locally. Falls back to origin/<name> if there's no local branch,
+# then main, then master, then whatever HEAD points at right now.
+default_branch() {
+  local ref name
+  if ref="$(git -C "$REPO" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null)"; then
+    name="${ref#origin/}"
+    if git -C "$REPO" show-ref --verify --quiet "refs/heads/$name"; then
+      printf '%s\n' "$name"; return
+    fi
+    printf '%s\n' "$ref"; return
+  fi
+  for b in main master; do
+    if git -C "$REPO" show-ref --verify --quiet "refs/heads/$b"; then
+      printf '%s\n' "$b"; return
+    fi
+  done
+  git -C "$REPO" rev-parse --abbrev-ref HEAD
+}
+
+[[ -n "$BASE" ]] || BASE="$(default_branch)"
+
+mkdir -p "$WT_ROOT"
+
+# Keep the worktree dir out of `git status` if nothing already ignores it.
+if ! git -C "$REPO" check-ignore -q "$WT_ROOT" 2>/dev/null; then
+  exclude_file="$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir)/info/exclude"
+  if [[ -f "$exclude_file" ]] && ! grep -qxF "/$WT_SUBDIR/" "$exclude_file"; then
+    printf '/%s/\n' "$WT_SUBDIR" >> "$exclude_file"
+    say "added /$WT_SUBDIR/ to .git/info/exclude"
+  fi
+fi
+
+if [[ -d "$WT_PATH" ]]; then
+  say "worktree already exists at $WT_PATH — reusing it"
+elif git -C "$REPO" show-ref --verify --quiet "refs/heads/$NAME"; then
+  say "branch '$NAME' exists — checking it out into a new worktree"
+  git -C "$REPO" worktree add "$WT_PATH" "$NAME" >&2
+else
+  say "creating branch '$NAME' off '$BASE'"
+  git -C "$REPO" worktree add -b "$NAME" "$WT_PATH" "$BASE" >&2
+fi
+
+# .env files are usually gitignored, so they don't come along with the checkout.
+if [[ "$COPY_ENV" == 1 ]]; then
+  shopt -s nullglob
+  for src in "$REPO"/.env "$REPO"/.env.*; do
+    [[ -f "$src" ]] || continue
+    dst="$WT_PATH/$(basename "$src")"
+    if [[ -e "$dst" ]]; then
+      say "$(basename "$src") already in worktree — leaving it untouched"
+    else
+      cp "$src" "$dst"
+      say "copied $(basename "$src") into worktree"
+    fi
+  done
+  shopt -u nullglob
+fi
+
+say "ready: $WT_PATH"
+printf '%s\n' "$WT_PATH"

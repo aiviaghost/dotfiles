@@ -51,6 +51,8 @@ packages/
 install.sh                  symlinks config/ into ~/.config, backing up anything it replaces
                             and removing links to files that were deleted from the repo
 scripts/new-feature.sh      unrelated work helper (git worktrees)
+scripts/wt                  create/remove/list git worktrees under <repo>/.claude/worktrees
+                            (installed as ~/.local/bin/wt; run `wt --help`)
 ```
 
 ---

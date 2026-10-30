@@ -14,7 +14,7 @@
 -- See https://wiki.hypr.land/configuring/core/monitors/
 
 -- Built-in laptop panel (native 2880x1620, scaled 1.5x -> 1920x1080 logical)
-hl.monitor({ output = "eDP-1", mode = "highres", position = "auto", scale = 1.5 })
+hl.monitor({ output = "eDP-1", mode = "highres", position = "auto", scale = 1.33 })
 
 -- External: 49" ultrawide (CE49ATILIUS). Native mode is 5120x1440@60, placed
 -- to the right of the laptop panel. Drop to the 2560x1440 line below if the

@@ -43,6 +43,9 @@ config/                     -> mirrors ~/.config (install.sh symlinks each file)
   systemd/user/wayland-wm@hyprland.desktop.service.d/override.conf
                               OOMPolicy=continue, so an OOM-kill (e.g. a browser tab) doesn't log you out
   mimeapps.list               Firefox as default browser
+boot/                       -> mirrors /boot (the ESP); copied by hand, NOT touched by install.sh
+  EFI/refind/refind.conf      rEFInd: stock config + CachyOS entry + bsxm1 theme
+  refind_linux.conf           kernel options for auto-detected CachyOS entries
 packages/
   pacman.txt                  repo packages this desktop needs
   aur.txt                     AUR packages this desktop needs
@@ -215,6 +218,25 @@ The `config.fish` lines for conda, coursier, railway and wokwi do nothing until 
 ### 10. Reboot
 
 Pick **Hyprland (uwsm)** in SDDM. You should see waybar at the top with numbered workspaces on the left and status icons on the right.
+
+### Optional: rEFInd boot menu
+
+The old machine boots with rEFInd (`sudo pacman -S refind`) and the [bsxm1 theme](https://github.com/AlexFullmoon/refind-bsxm1-theme). The ESP is mounted at `/boot` and is FAT, so these files are copied rather than symlinked.
+
+Fix the machine-specific values **before** copying, or the CachyOS entry won't boot:
+
+- `boot/refind_linux.conf` and the `CachyOS` entry at the bottom of `boot/EFI/refind/refind.conf` both use `root=UUID=85b80237-...`. Get the new root UUID with `findmnt -no UUID /`.
+- The kernel and initramfs paths (`/vmlinuz-linux-cachyos`, `/initramfs-linux-cachyos.img`) are relative to the ESP. They are correct when the ESP is `/boot`.
+
+```fish
+sudo refind-install                  # skip if rEFInd is already installed on the ESP
+sudo git clone https://github.com/AlexFullmoon/refind-bsxm1-theme.git /boot/EFI/refind/themes/refind-bsxm1-theme
+sudo cp /boot/EFI/refind/refind.conf /boot/EFI/refind/refind.conf.bak
+sudo cp boot/EFI/refind/refind.conf /boot/EFI/refind/refind.conf
+sudo cp boot/refind_linux.conf /boot/refind_linux.conf
+```
+
+When you change the live files, copy them back into `boot/` before you commit.
 
 ### Updating a machine that already uses these dotfiles
 
